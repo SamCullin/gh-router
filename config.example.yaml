@@ -1,0 +1,28 @@
+default: SamCullin
+
+accounts:
+  SamCullin:
+    config_dir: ~/.config/gh
+  SamWork:
+    config_dir: ~/.config/gh-router/accounts/SamWork
+  SamAdmin:
+    config_dir: ~/.config/gh-router/accounts/SamAdmin
+  ClientAccount:
+    config_dir: ~/.config/gh-router/accounts/ClientAccount
+
+orgs:
+  OpenAI:
+    account: SamWork
+  SomeClient:
+    account: ClientAccount
+
+repos:
+  OpenAI/sensitive-repo:
+    account: SamAdmin
+  PersonalOrg/project:
+    account: SamCullin
+
+implicit_orgs:
+  PersonalOrg:
+    account: SamCullin
+    source: PersonalOrg/project
