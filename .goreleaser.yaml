@@ -1,0 +1,46 @@
+version: 2
+
+project_name: gh-router
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gh-router
+    main: ./cmd/gh-router
+    binary: gh-router
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/SamCullin/gh-router/internal/version.Version={{.Version}}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+
+brews:
+  - repository:
+      owner: SamCullin
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/SamCullin/gh-router
+    description: Deterministic GitHub CLI account routing
+    install: |
+      bin.install "gh-router"
+    test: |
+      system "#{bin}/gh-router", "--version"

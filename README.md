@@ -87,21 +87,29 @@ gh-router auth unset --repo OpenAI/sensitive-repo
 
 `gh-router auth switch` is intentionally a successful no-op and explains that account selection is automatic. `gh-router auth status` reports routing configuration and never reports a mutable active account.
 
-## Installation
+## Installation with Homebrew
 
-This project uses `uv`:
+Tagged releases build checksum-verified archives for macOS and Linux and publish a formula to `SamCullin/homebrew-tap`:
 
 ```bash
-uv sync
-uv run python -m unittest discover -s tests -v
-uv run gh-router auth status
+brew tap SamCullin/tap
+brew install gh-router
 ```
 
-To use it as a transparent `gh` replacement, install the project and put a symlink named `gh` earlier on `PATH` than the real GitHub CLI:
+The release workflow expects a `SamCullin/homebrew-tap` repository and a repository secret named `HOMEBREW_TAP_GITHUB_TOKEN` with permission to push formula updates there. The first release creates `Formula/gh-router.rb` in that tap.
+
+For local development:
 
 ```bash
-uv tool install .
-ln -sf "$(command -v gh-router)" "$HOME/.local/bin/gh"
+make test
+make vet
+make build
+```
+
+To use the built binary as a transparent `gh` replacement, put a symlink named `gh` earlier on `PATH` than the real GitHub CLI:
+
+```bash
+ln -sf "$PWD/bin/gh-router" "$HOME/.local/bin/gh"
 ```
 
 If automatic real-CLI discovery is unsuitable, set `GH_ROUTER_REAL_GH` to the native executable path.
