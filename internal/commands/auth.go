@@ -225,7 +225,7 @@ func PrintSwitchMessage(writer io.Writer) {
 	fmt.Fprintln(writer, "Account selection is determined by repository and organisation configuration.")
 	fmt.Fprintln(writer)
 	fmt.Fprintln(writer, "To override the account for a command:")
-	fmt.Fprintln(writer, "  gh --account SamCullin <command>")
+	fmt.Fprintln(writer, "  gh-router --account SamCullin <command>")
 }
 
 func (options AuthOptions) ValidateForSet() error {

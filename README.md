@@ -1,4 +1,18 @@
+[![Build & Release](https://github.com/SamCullin/gh-router/actions/workflows/release.yml/badge.svg)](https://github.com/SamCullin/gh-router/actions/workflows/release.yml)
+[![CI](https://github.com/SamCullin/gh-router/actions/workflows/ci.yml/badge.svg)](https://github.com/SamCullin/gh-router/actions/workflows/ci.yml)
+[![Go version](https://img.shields.io/github/go-mod/go-version/SamCullin/gh-router)](https://github.com/SamCullin/gh-router/blob/main/go.mod)
+[![GitHub Release](https://img.shields.io/github/v/release/SamCullin/gh-router)](https://github.com/SamCullin/gh-router/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/SamCullin/gh-router/graphs/commit-activity)
+[![Downloads](https://img.shields.io/github/downloads/SamCullin/gh-router/total.svg)](https://github.com/SamCullin/gh-router/releases)
+[![GitHub issues](https://img.shields.io/github/issues/SamCullin/gh-router.svg)](https://github.com/SamCullin/gh-router/issues)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](https://makeapullrequest.com)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white)](https://conventionalcommits.org)
+[![GoReleaser](https://img.shields.io/badge/release-GoReleaser-00ADD8?logo=go&logoColor=white)](https://goreleaser.com/)
+
 # gh-router
+
+[!['Buy Me A Coffee'](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/samcullin)
 
 `gh-router` is a deterministic wrapper for the GitHub CLI. It selects credentials from the repository and organisation being acted on, rather than relying on GitHub CLI's mutable active-account state.
 
@@ -96,7 +110,14 @@ brew tap SamCullin/tap
 brew install gh-router
 ```
 
-The release workflow expects a `SamCullin/homebrew-tap` repository and a repository secret named `HOMEBREW_TAP_GITHUB_TOKEN` with permission to push formula updates there. The first release creates `Formula/gh-router.rb` in that tap.
+Upgrade later with:
+
+```bash
+brew update
+brew upgrade gh-router
+```
+
+The tap is maintained in [`SamCullin/homebrew-tap`](https://github.com/SamCullin/homebrew-tap). Tagged releases publish checksum-verified archives for macOS and Linux and update the formula automatically.
 
 For local development:
 
@@ -109,7 +130,17 @@ make build
 To use the built binary as a transparent `gh` replacement, put a symlink named `gh` earlier on `PATH` than the real GitHub CLI:
 
 ```bash
-ln -sf "$PWD/bin/gh-router" "$HOME/.local/bin/gh"
+mkdir -p "$HOME/.local/bin"
+ln -sf "$(brew --prefix gh-router)/bin/gh-router" "$HOME/.local/bin/gh"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 If automatic real-CLI discovery is unsuitable, set `GH_ROUTER_REAL_GH` to the native executable path.
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for development checks and contribution guidelines.
+
+## License
+
+Released under the [MIT License](LICENSE).
