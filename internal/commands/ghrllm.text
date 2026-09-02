@@ -6,26 +6,29 @@ What gh-router does:
 - This matters when multiple agents run at the same time and use different GitHub accounts.
 
 Install:
-1. Run `brew install SamCullin/tap/gh-router`.
-2. Confirm that both `gh-router --version` and `ghr --version` work.
+1. Run `brew install --cask SamCullin/tap/gh-router`.
+2. Confirm that `gh-router --version`, `ghr --version`, `gh router llm-text`, and `ghrllm.text` work.
 3. Do not ask the user for a token and do not print credential files.
 
 Set up accounts:
 1. Ask the user for a local account label, such as `SamWork`.
-2. Run `gh-router auth setup <account>` for each account.
+2. Run `gh router auth setup <account>` for each account.
 3. This command creates the isolated GitHub CLI config directory, launches the native `gh auth login` flow, and records the account in `~/.config/gh-router/config.yaml`.
-4. If an existing GitHub CLI config should be reused, pass it explicitly with `--config-dir`, for example `gh-router auth setup SamCullin --config-dir ~/.config/gh`.
+4. If an existing GitHub CLI config should be reused, pass it explicitly with `--config-dir`, for example `gh router auth setup SamCullin --config-dir ~/.config/gh`.
 5. The first account configured becomes the default. Do not change the default without the user's instruction.
-6. Check the result with `gh-router auth status`.
+6. Check the result with `gh router auth status`.
 
 Configure routing:
-- Use `gh-router auth set --org <organisation> --account <account>` for an organisation.
-- Use `gh-router auth set --repo <owner/repository> --account <account>` for a repository exception.
-- Use `gh-router --account <account> <command>` for a one-command override.
-- Use `gh-router auth unset --org <organisation>` or `gh-router auth unset --repo <owner/repository>` to remove a rule.
+- Use `gh router auth set --org <organisation> --account <account>` for an organisation.
+- Use `gh router auth set --repo <owner/repository> --account <account>` for a repository exception.
+- Use `gh --account <account> <command>` for a one-command override when `gh` points to the router.
+- Use `gh router auth unset --org <organisation>` or `gh router auth unset --repo <owner/repository>` to remove a rule.
 
 Use:
-- Prefer `gh-router` or `ghr` for GitHub operations.
-- Use `gh-router auth status --resolve -R <owner/repository>` before testing a route.
+- Treat `gh` as the normal GitHub CLI entry point. Its help and `gh auth ...` commands remain native.
+- Use `gh router ...` for router configuration and help.
+- Use `gh router llm-text` to print this setup and usage prompt again.
+- Use `ghr` or `gh-router` when an explicit routed invocation is needed.
+- Use `gh router auth status --resolve -R <owner/repository>` before testing a route.
 - Use read-only commands for verification unless the user explicitly requests a change.
-- Never use `gh auth switch` to coordinate concurrent agents.
+- Never use `gh auth switch` to coordinate concurrent agents; use router configuration instead.

@@ -220,12 +220,15 @@ func RenderStatus(configuration config.Config, writer io.Writer) {
 }
 
 func PrintSwitchMessage(writer io.Writer) {
-	fmt.Fprintln(writer, "gh-router: account switching is automatic; no action required.")
+	fmt.Fprintln(writer, "gh-router: do not use gh auth switch; account switching is automatic.")
 	fmt.Fprintln(writer)
 	fmt.Fprintln(writer, "Account selection is determined by repository and organisation configuration.")
 	fmt.Fprintln(writer)
 	fmt.Fprintln(writer, "To override the account for a command:")
-	fmt.Fprintln(writer, "  gh-router --account SamCullin <command>")
+	fmt.Fprintln(writer, "  gh --account SamCullin <command>")
+	fmt.Fprintln(writer)
+	fmt.Fprintln(writer, "To configure router accounts and rules:")
+	fmt.Fprintln(writer, "  gh router --help")
 }
 
 func (options AuthOptions) ValidateForSet() error {

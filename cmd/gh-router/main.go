@@ -31,56 +31,45 @@ func run(rawArguments []string) error {
 		return nil
 	}
 
+	if isDirectRouterInvocation(os.Args[0]) && isRootHelpRequest(rawArguments) {
+		commands.PrintHelp(os.Stdout)
+		return nil
+	}
+
+	if isRouterNamespace(rawArguments) {
+		return runRouterCommand(rawArguments[1:])
+	}
+	if isDirectRouterInvocation(os.Args[0]) && isDirectRouterCommand(rawArguments) {
+		return runRouterCommand(rawArguments)
+	}
+
+	commandArguments := append([]string(nil), rawArguments...)
+	accountOverride, commandArguments, err := args.ExtractAccountOverride(commandArguments)
+	if err != nil {
+		return err
+	}
+
+	if isNativeAuthSwitch(commandArguments) {
+		commands.PrintSwitchMessage(os.Stdout)
+		return nil
+	}
+	if len(commandArguments) == 1 && commandArguments[0] == "--version" {
+		if isDirectRouterInvocation(os.Args[0]) {
+			fmt.Printf("gh-router %s\n", version.Version)
+			return nil
+		}
+		return executeNative(commandArguments)
+	}
+
+	if isNativeAuthCommand(commandArguments) || isPassthroughWithoutRouting(commandArguments) {
+		return executeNative(commandArguments)
+	}
+
 	path, err := config.DefaultPath()
 	if err != nil {
 		return err
 	}
 	store := config.NewStore(path)
-
-	commandArguments := append([]string(nil), rawArguments...)
-	accountOverride := ""
-	if len(commandArguments) == 0 || commandArguments[0] != "auth" {
-		accountOverride, commandArguments, err = args.ExtractAccountOverride(commandArguments)
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(commandArguments) >= 2 && commandArguments[0] == "auth" {
-		switch commandArguments[1] {
-		case "switch":
-			commands.PrintSwitchMessage(os.Stdout)
-			return nil
-		case "set":
-			if accountOverride != "" {
-				commandArguments = append(commandArguments, "--account", accountOverride)
-			}
-			return commands.Set(store, commandArguments[2:])
-		case "setup", "login":
-			if accountOverride != "" {
-				commandArguments = append(commandArguments, "--account", accountOverride)
-			}
-			return commands.Setup(store, os.Stdout, commandArguments[2:], os.Args[0], nil, nil)
-		case "unset":
-			return commands.Unset(store, commandArguments[2:])
-		case "status":
-			return commands.Status(store, os.Stdout, commandArguments[2:], accountOverride, nil, "")
-		case "resolve":
-			return commands.Status(store, os.Stdout, append([]string{"--resolve"}, commandArguments[2:]...), accountOverride, nil, "")
-		}
-	}
-	if len(commandArguments) == 1 && commandArguments[0] == "--version" {
-		fmt.Printf("gh-router %s\n", version.Version)
-		return nil
-	}
-
-	if isPassthroughWithoutRouting(commandArguments) {
-		realGH, err := ghexec.FindRealGH(os.Args[0], nil)
-		if err != nil {
-			return err
-		}
-		return ghexec.Execute(realGH, commandArguments, nil)
-	}
 
 	configuration, err := store.Load()
 	if err != nil {
@@ -97,12 +86,110 @@ func run(rawArguments []string) error {
 	return ghexec.Run(commandArguments, configuration, resolution, os.Args[0], nil)
 }
 
+func executeNative(arguments []string) error {
+	realGH, err := ghexec.FindRealGH(os.Args[0], nil)
+	if err != nil {
+		return err
+	}
+	return ghexec.Execute(realGH, arguments, nil)
+}
+
+func runRouterCommand(rawArguments []string) error {
+	if isRouterHelpRequest(rawArguments) {
+		commands.PrintHelp(os.Stdout)
+		return nil
+	}
+	if len(rawArguments) == 1 && rawArguments[0] == "--version" {
+		fmt.Printf("gh-router %s\n", version.Version)
+		return nil
+	}
+	if len(rawArguments) == 1 && rawArguments[0] == "llm-text" {
+		commands.PrintLLMPrompt(os.Stdout)
+		return nil
+	}
+
+	path, err := config.DefaultPath()
+	if err != nil {
+		return err
+	}
+	store := config.NewStore(path)
+
+	if len(rawArguments) < 2 || rawArguments[0] != "auth" {
+		return fmt.Errorf("unsupported router command: %s", rawArguments[0])
+	}
+
+	switch rawArguments[1] {
+	case "switch":
+		commands.PrintSwitchMessage(os.Stdout)
+		return nil
+	case "set":
+		return commands.Set(store, rawArguments[2:])
+	case "setup", "login":
+		return commands.Setup(store, os.Stdout, rawArguments[2:], os.Args[0], nil, nil)
+	case "unset":
+		return commands.Unset(store, rawArguments[2:])
+	case "status":
+		return commands.Status(store, os.Stdout, rawArguments[2:], "", nil, "")
+	case "resolve":
+		return commands.Status(store, os.Stdout, append([]string{"--resolve"}, rawArguments[2:]...), "", nil, "")
+	default:
+		return fmt.Errorf("unsupported router auth command: %s", rawArguments[1])
+	}
+}
+
+func isRouterNamespace(arguments []string) bool {
+	return len(arguments) > 0 && arguments[0] == "router"
+}
+
+func isDirectRouterInvocation(argv0 string) bool {
+	switch filepath.Base(argv0) {
+	case "gh-router", "ghr":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRouterHelpRequest(arguments []string) bool {
+	if len(arguments) == 0 {
+		return true
+	}
+	for _, argument := range arguments {
+		if argument == "--help" || argument == "help" {
+			return true
+		}
+	}
+	return false
+}
+
+func isRootHelpRequest(arguments []string) bool {
+	return len(arguments) == 0 || (len(arguments) == 1 && (arguments[0] == "--help" || arguments[0] == "help"))
+}
+
+func isNativeAuthSwitch(arguments []string) bool {
+	return len(arguments) >= 2 && arguments[0] == "auth" && arguments[1] == "switch"
+}
+
+func isNativeAuthCommand(arguments []string) bool {
+	return len(arguments) > 0 && arguments[0] == "auth" && !isNativeAuthSwitch(arguments)
+}
+
+func isRouterAuthCommand(arguments []string) bool {
+	return len(arguments) > 0 && arguments[0] == "auth"
+}
+
+func isDirectRouterCommand(arguments []string) bool {
+	return isRouterAuthCommand(arguments) || (len(arguments) == 1 && arguments[0] == "llm-text")
+}
+
 func isPassthroughWithoutRouting(arguments []string) bool {
 	if len(arguments) == 0 {
 		return true
 	}
-	if len(arguments) == 1 && (arguments[0] == "--help" || arguments[0] == "help") {
-		return true
+	for _, argument := range arguments {
+		if argument == "--help" || argument == "help" {
+			return true
+		}
 	}
 	return false
 }
