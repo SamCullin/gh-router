@@ -32,18 +32,16 @@ checksum:
 changelog:
   sort: asc
 
-brews:
+homebrew_casks:
   - repository:
       owner: SamCullin
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Formula
+    directory: Casks
+    binaries:
+      - gh-router
     homepage: https://github.com/SamCullin/gh-router
     description: Deterministic GitHub CLI account routing
-    install: |
-      bin.install "gh-router"
-      bin.install_symlink "gh-router" => "ghr"
-      bin.install_symlink "gh-router" => "ghrllm.text"
-    test: |
-      system "#{bin}/gh-router", "--version"
-      system "#{bin}/ghrllm.text"
+    custom_block: |
+      binary "gh-router", target: "ghr"
+      binary "gh-router", target: "ghrllm.text"

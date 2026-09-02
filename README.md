@@ -18,7 +18,7 @@
 ```text
 Install and configure gh-router for me.
 
-Use Homebrew to install it with `brew install SamCullin/tap/gh-router`.
+Use Homebrew to install it with `brew install --cask SamCullin/tap/gh-router`.
 Confirm that `gh-router --version`, `ghr --version`, and `ghrllm.text` work.
 
 Ask me which local account labels I need. For each account, run
@@ -57,15 +57,15 @@ For example, Agent A can select a work account while Agent B expects a personal 
 
 ## Installation
 
-### Homebrew
+### Homebrew Cask
 
-Tagged releases publish checksum-verified archives for macOS and Linux and update the formula in [`SamCullin/homebrew-tap`](https://github.com/SamCullin/homebrew-tap):
+Tagged releases publish checksum-verified archives for macOS and Linux and update the cask in [`SamCullin/homebrew-tap`](https://github.com/SamCullin/homebrew-tap):
 
 ```bash
-brew install SamCullin/tap/gh-router
+brew install --cask SamCullin/tap/gh-router
 ```
 
-The formula installs three commands:
+The cask installs three commands:
 
 - `gh-router`, the full command name
 - `ghr`, the shorthand for `gh-router`
@@ -77,7 +77,14 @@ Upgrade later with:
 
 ```bash
 brew update
-brew upgrade gh-router
+brew upgrade --cask gh-router
+```
+
+If you installed `gh-router` as a Formula before the cask migration, migrate it once:
+
+```bash
+brew uninstall gh-router
+brew install --cask SamCullin/tap/gh-router
 ```
 
 ### From source
