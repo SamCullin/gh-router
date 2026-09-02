@@ -3,3 +3,8 @@ build/
 bin/
 coverage.out
 .DS_Store
+
+# Python bytecode and cache directories
+__pycache__/
+*.py[cod]
+*$py.class
