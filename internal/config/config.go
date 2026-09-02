@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -93,6 +94,40 @@ func DefaultPath() (string, error) {
 		return "", fmt.Errorf("resolve home directory: %w", err)
 	}
 	return filepath.Join(home, ".config", "gh-router", "config.yaml"), nil
+}
+
+func ManagedAccountConfigDir(account string) (string, error) {
+	name, err := ValidateAccountName(account)
+	if err != nil {
+		return "", err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	return filepath.Join(home, ".config", "gh-router", "accounts", name), nil
+}
+
+func ManagedAccountConfigReference(account string) (string, error) {
+	name, err := ValidateAccountName(account)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join("~", ".config", "gh-router", "accounts", name), nil
+}
+
+func ValidateAccountName(value string) (string, error) {
+	name := strings.TrimSpace(value)
+	if name == "" {
+		return "", fmt.Errorf("account name cannot be empty")
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\\`) {
+		return "", fmt.Errorf("account name cannot contain path separators")
+	}
+	if strings.IndexFunc(name, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("account name cannot contain control characters")
+	}
+	return name, nil
 }
 
 func ExpandPath(value string) (string, error) {

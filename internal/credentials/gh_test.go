@@ -25,3 +25,20 @@ func TestEnvironmentForReplacesInheritedTokens(t *testing.T) {
 		t.Fatal("GITHUB_TOKEN was not removed")
 	}
 }
+
+func TestEnvironmentForDirectorySetsConfigWithoutInheritedTokens(t *testing.T) {
+	environment := EnvironmentForDirectory("/tmp/gh-router-work", map[string]string{
+		"GH_TOKEN":     "wrong-token",
+		"GITHUB_TOKEN": "also-wrong-token",
+		"PATH":         "/bin",
+	})
+	if environment["GH_CONFIG_DIR"] != "/tmp/gh-router-work" {
+		t.Fatalf("config directory was not set: %#v", environment)
+	}
+	if _, exists := environment["GH_TOKEN"]; exists {
+		t.Fatal("GH_TOKEN was not removed")
+	}
+	if _, exists := environment["GITHUB_TOKEN"]; exists {
+		t.Fatal("GITHUB_TOKEN was not removed")
+	}
+}

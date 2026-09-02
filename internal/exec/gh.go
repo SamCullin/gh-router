@@ -65,6 +65,18 @@ func Execute(realGH string, arguments []string, environ map[string]string) error
 	return syscall.Exec(realGH, argv, environmentSlice(environ))
 }
 
+func RunInteractive(realGH string, arguments []string, environ map[string]string) error {
+	command := osexec.Command(realGH, arguments...)
+	if environ == nil {
+		environ = environmentMap()
+	}
+	command.Env = environmentSlice(environ)
+	command.Stdin = os.Stdin
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	return command.Run()
+}
+
 func environmentValue(environ map[string]string, key string) (string, bool) {
 	if environ != nil {
 		value, ok := environ[key]

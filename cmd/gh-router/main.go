@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/SamCullin/gh-router/internal/args"
 	"github.com/SamCullin/gh-router/internal/commands"
@@ -14,6 +15,10 @@ import (
 )
 
 func main() {
+	if filepath.Base(os.Args[0]) == "ghrllm.text" {
+		commands.PrintLLMPrompt(os.Stdout)
+		return
+	}
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "gh-router: %v\n", err)
 		os.Exit(2)
@@ -21,6 +26,11 @@ func main() {
 }
 
 func run(rawArguments []string) error {
+	if len(rawArguments) == 1 && rawArguments[0] == "ghrllm.text" {
+		commands.PrintLLMPrompt(os.Stdout)
+		return nil
+	}
+
 	path, err := config.DefaultPath()
 	if err != nil {
 		return err
@@ -46,6 +56,11 @@ func run(rawArguments []string) error {
 				commandArguments = append(commandArguments, "--account", accountOverride)
 			}
 			return commands.Set(store, commandArguments[2:])
+		case "setup", "login":
+			if accountOverride != "" {
+				commandArguments = append(commandArguments, "--account", accountOverride)
+			}
+			return commands.Setup(store, os.Stdout, commandArguments[2:], os.Args[0], nil, nil)
 		case "unset":
 			return commands.Unset(store, commandArguments[2:])
 		case "status":
