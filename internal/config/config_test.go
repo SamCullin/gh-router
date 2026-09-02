@@ -53,3 +53,33 @@ func TestSaveUsesPrivatePermissions(t *testing.T) {
 		t.Fatalf("expected 0600 permissions, got %o", info.Mode().Perm())
 	}
 }
+
+func TestManagedAccountConfigDirUsesAccountSpecificDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	directory, err := ManagedAccountConfigDir("SamWork")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := filepath.Join(home, ".config", "gh-router", "accounts", "SamWork")
+	if directory != expected {
+		t.Fatalf("expected %s, got %s", expected, directory)
+	}
+
+	reference, err := ManagedAccountConfigReference("SamWork")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reference != filepath.Join("~", ".config", "gh-router", "accounts", "SamWork") {
+		t.Fatalf("unexpected config reference: %s", reference)
+	}
+}
+
+func TestValidateAccountNameRejectsPathTraversal(t *testing.T) {
+	for _, account := range []string{"", ".", "..", "../work", `work\\admin`, "work\nadmin"} {
+		if _, err := ValidateAccountName(account); err == nil {
+			t.Errorf("expected account name %q to be rejected", account)
+		}
+	}
+}

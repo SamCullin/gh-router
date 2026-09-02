@@ -22,6 +22,22 @@ func ConfigDirectory(configuration config.Config, account string) (string, error
 	return directory, nil
 }
 
+func EnsureConfigDirectory(directory string) error {
+	if err := os.MkdirAll(directory, 0700); err != nil {
+		return fmt.Errorf("create GitHub CLI config directory: %w", err)
+	}
+	if err := os.Chmod(directory, 0700); err != nil {
+		return fmt.Errorf("secure GitHub CLI config directory: %w", err)
+	}
+	return nil
+}
+
+func EnvironmentForDirectory(directory string, environ map[string]string) map[string]string {
+	result := withoutInheritedTokensMap(environ)
+	result["GH_CONFIG_DIR"] = directory
+	return result
+}
+
 func TokenFor(configuration config.Config, account, realGH string, environ map[string]string, hostname string) (string, error) {
 	directory, err := ConfigDirectory(configuration, account)
 	if err != nil {
@@ -53,8 +69,7 @@ func EnvironmentFor(configuration config.Config, account, token string, environ 
 	if err != nil {
 		return nil, err
 	}
-	result := withoutInheritedTokensMap(environ)
-	result["GH_CONFIG_DIR"] = directory
+	result := EnvironmentForDirectory(directory, environ)
 	result["GH_TOKEN"] = token
 	return result, nil
 }

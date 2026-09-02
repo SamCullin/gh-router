@@ -2,7 +2,7 @@ default: SamCullin
 
 accounts:
   SamCullin:
-    config_dir: ~/.config/gh
+    config_dir: ~/.config/gh-router/accounts/SamCullin
   SamWork:
     config_dir: ~/.config/gh-router/accounts/SamWork
   SamAdmin:
