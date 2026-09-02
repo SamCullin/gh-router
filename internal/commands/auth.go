@@ -17,6 +17,7 @@ type AuthOptions struct {
 	HasDefault bool
 	Org        string
 	Repo       string
+	Path       string
 	Account    string
 	ConfigDir  string
 }
@@ -55,6 +56,8 @@ func ParseAuthOptions(arguments []string) (AuthOptions, error) {
 			options.Org = strings.TrimSpace(value)
 		case "repo":
 			options.Repo = strings.TrimSpace(value)
+		case "path":
+			options.Path = strings.TrimSpace(value)
 		case "account":
 			options.Account = strings.TrimSpace(value)
 		case "config-dir":
@@ -112,6 +115,12 @@ func Set(store config.Store, arguments []string) error {
 		}
 		fmt.Printf("Repository configured: %s -> %s\n", options.Repo, options.Account)
 	}
+	if options.Path != "" {
+		if err := configuration.SetPathRule(options.Path, options.Account); err != nil {
+			return err
+		}
+		fmt.Printf("Path configured: %s -> %s\n", options.Path, options.Account)
+	}
 	return store.Save(configuration)
 }
 
@@ -121,10 +130,20 @@ func Unset(store config.Store, arguments []string) error {
 		return err
 	}
 	if options.HasDefault || options.Account != "" || options.ConfigDir != "" {
-		return fmt.Errorf("only --org and --repo can be unset")
+		return fmt.Errorf("only --org, --repo, or --path can be unset")
 	}
-	if (options.Org == "") == (options.Repo == "") {
-		return fmt.Errorf("use exactly one of --org or --repo")
+	scopes := 0
+	if options.Org != "" {
+		scopes++
+	}
+	if options.Repo != "" {
+		scopes++
+	}
+	if options.Path != "" {
+		scopes++
+	}
+	if scopes != 1 {
+		return fmt.Errorf("use exactly one of --org, --repo, or --path")
 	}
 	configuration, err := store.Load()
 	if err != nil {
@@ -144,6 +163,13 @@ func Unset(store config.Store, arguments []string) error {
 		}
 		configuration.RemoveImplicitSource(options.Repo)
 		fmt.Printf("Repository rule removed: %s\n", removed)
+	}
+	if options.Path != "" {
+		removed, ok := configuration.RemovePathRule(options.Path)
+		if !ok {
+			return fmt.Errorf("no path rule exists for %s", options.Path)
+		}
+		fmt.Printf("Path rule removed: %s\n", removed)
 	}
 	return store.Save(configuration)
 }
@@ -179,6 +205,8 @@ func Status(store config.Store, writer io.Writer, arguments []string, override s
 		targetName = resolvedTarget.Repository
 	} else if resolvedTarget.Organisation != "" {
 		targetName = "organisation:" + resolvedTarget.Organisation
+	} else if resolution.Source == routing.SourcePath {
+		targetName = "directory:" + resolvedTarget.Directory
 	}
 	source := string(resolution.Source)
 	if resolution.Rule != "" {
@@ -201,6 +229,12 @@ func RenderStatus(configuration config.Config, writer io.Writer) {
 		fmt.Fprintln(writer, "  Organisations")
 		for _, organisation := range sortedKeys(configuration.Orgs) {
 			fmt.Fprintf(writer, "    %s → %s\n", organisation, configuration.Orgs[organisation].Account)
+		}
+	}
+	if len(configuration.Paths) > 0 {
+		fmt.Fprintln(writer, "  Paths")
+		for _, path := range sortedKeys(configuration.Paths) {
+			fmt.Fprintf(writer, "    %s → %s\n", path, configuration.Paths[path].Account)
 		}
 	}
 	if len(configuration.Repos) > 0 {
@@ -242,14 +276,17 @@ func (options AuthOptions) ValidateForSet() error {
 	if options.Repo != "" {
 		scopes++
 	}
-	if scopes != 1 {
-		return fmt.Errorf("use exactly one of --default, --org, or --repo")
+	if options.Path != "" {
+		scopes++
 	}
-	if options.HasDefault && (options.Account != "" || options.Org != "" || options.Repo != "") {
-		return fmt.Errorf("--default cannot be combined with --org, --repo, or --account")
+	if scopes != 1 {
+		return fmt.Errorf("use exactly one of --default, --org, --repo, or --path")
+	}
+	if options.HasDefault && (options.Account != "" || options.Org != "" || options.Repo != "" || options.Path != "") {
+		return fmt.Errorf("--default cannot be combined with --org, --repo, --path, or --account")
 	}
 	if !options.HasDefault && options.Account == "" {
-		return fmt.Errorf("--org and --repo require --account")
+		return fmt.Errorf("--org, --repo, and --path require --account")
 	}
 	if options.ConfigDir != "" && options.Default == "" && options.Account == "" {
 		return fmt.Errorf("--config-dir requires an account")
@@ -264,7 +301,7 @@ func (options AuthOptions) ValidateForSet() error {
 
 func supportedAuthOption(name string) bool {
 	switch name {
-	case "default", "org", "repo", "account", "config-dir":
+	case "default", "org", "repo", "path", "account", "config-dir":
 		return true
 	default:
 		return false

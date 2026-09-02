@@ -7,12 +7,24 @@ import (
 )
 
 func TestResolveUsesExplicitRepositoryBeforeOtherSources(t *testing.T) {
-	resolved, err := Resolve([]string{"-R", "OtherOrg/bar", "pr", "list"}, map[string]string{"GH_REPO": "OpenAI/foo"}, t.TempDir())
+	directory := t.TempDir()
+	resolved, err := Resolve([]string{"-R", "OtherOrg/bar", "pr", "list"}, map[string]string{"GH_REPO": "OpenAI/foo"}, directory)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Repository != "OtherOrg/bar" || resolved.Source != SourceCommand {
+	if resolved.Repository != "OtherOrg/bar" || resolved.Source != SourceCommand || resolved.Directory != directory {
 		t.Fatalf("unexpected target: %#v", resolved)
+	}
+}
+
+func TestResolveUsesCurrentDirectoryForPathRouting(t *testing.T) {
+	directory := t.TempDir()
+	resolved, err := Resolve(nil, map[string]string{}, directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Directory != directory {
+		t.Fatalf("expected directory %s, got %#v", directory, resolved)
 	}
 }
 

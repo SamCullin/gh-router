@@ -14,6 +14,7 @@ const (
 	SourceOverride    Source = "override"
 	SourceRepo        Source = "repo"
 	SourceOrg         Source = "org"
+	SourcePath        Source = "path"
 	SourceImplicitOrg Source = "implicit-org"
 	SourceDefault     Source = "default"
 )
@@ -41,6 +42,13 @@ func ResolveAccount(configuration config.Config, resolvedTarget target.Target, o
 		if account, rule, ok := configuration.OrganisationRule(organisation); ok {
 			return AccountResolution{Account: configuration.AccountName(account), Source: SourceOrg, Rule: rule}, nil
 		}
+	}
+	if resolvedTarget.Directory != "" {
+		if account, rule, ok := configuration.PathRule(resolvedTarget.Directory); ok {
+			return AccountResolution{Account: configuration.AccountName(account), Source: SourcePath, Rule: rule}, nil
+		}
+	}
+	if organisation != "" {
 		if rule, configuredOrganisation, ok := configuration.ImplicitOrganisationRule(organisation); ok {
 			return AccountResolution{Account: configuration.AccountName(rule.Account), Source: SourceImplicitOrg, Rule: configuredOrganisation}, nil
 		}

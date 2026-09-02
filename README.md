@@ -34,8 +34,9 @@ If I want to reuse an existing GitHub CLI configuration, pass it with
 Do not ask me for a token or print credential files. The first configured
 account becomes the default. Confirm the result with `gh router auth status`.
 
-Ask which organisations or repositories should use each account, then add
-rules with `gh router auth set --org` or `gh router auth set --repo`.
+Ask which organisations, repositories, or local source directories should use
+each account, then add rules with `gh router auth set --org`,
+`gh router auth set --repo`, or `gh router auth set --path`.
 Resolve a read-only test target with
 `gh router auth status --resolve -R OWNER/REPOSITORY` before testing a command.
 Use `gh <command>` for normal GitHub CLI work when `gh` points to the router,
@@ -68,7 +69,8 @@ operation surface when an explicit router binary is preferable.
 
 - `gh-router` delegates GitHub operations to a native `gh` installation and does not issue or store tokens itself.
 - Routing currently targets `github.com`; each account must have its own authenticated GitHub CLI configuration directory.
-- Commands without a repository or organisation target use the configured default account. Use `--account` when the choice must be explicit.
+- Path rules match the current working directory and all descendants. Use an absolute path or a path beginning with `~`; the most specific matching path wins.
+- Explicit account, repository, and organisation rules take priority over path rules. Commands without a matching target use the configured default account.
 
 ## Installation
 
@@ -165,6 +167,10 @@ orgs:
   OpenAI:
     account: SamWork
 
+paths:
+  ~/src/insurgence-ai:
+    account: SamWork
+
 repos:
   OpenAI/sensitive-repo:
     account: SamCullin
@@ -177,11 +183,14 @@ Use the command helpers to manage rules without editing YAML:
 ```bash
 gh router auth set --default SamCullin
 gh router auth set --org OpenAI --account SamWork
+gh router auth set --path ~/src/insurgence-ai --account SamWork
 gh router auth set --repo OpenAI/sensitive-repo --account SamCullin
 gh router auth unset --repo OpenAI/sensitive-repo
+gh router auth unset --path ~/src/insurgence-ai
 ```
 
 The first repository rule for an organisation establishes its implicit organisation account. Later repository rules for that organisation remain exceptions and do not silently change the fallback account.
+Path rules apply to the configured directory and anything below it. Use them when your local source tree mirrors GitHub organisation and repository names, or when a repository remote uses an SSH host alias that the router cannot identify.
 
 ## Use
 
@@ -195,6 +204,7 @@ gh pr list -R OpenAI/sensitive-repo
 gh --account SamCullin pr create
 gh router auth status
 gh router auth status --resolve -R OpenAI/sensitive-repo
+gh router auth status --resolve
 gh router llm-text
 ```
 

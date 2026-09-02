@@ -30,6 +30,45 @@ func TestSetCreatesStableImplicitOrganisationRule(t *testing.T) {
 	}
 }
 
+func TestSetAndUnsetPathRule(t *testing.T) {
+	store := config.NewStore(filepath.Join(t.TempDir(), "config.yaml"))
+	configuration := config.New("SamCullin")
+	if err := store.Save(configuration); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Set(store, []string{"--path", "~/src/insurgence-ai", "--account", "SamInsurgence"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Set(store, []string{"--path", "~/src", "--account", "SamWork"}); err != nil {
+		t.Fatal(err)
+	}
+	configuration, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if configuration.Paths["~/src/insurgence-ai"].Account != "SamInsurgence" {
+		t.Fatalf("unexpected path rules: %#v", configuration.Paths)
+	}
+	if configuration.Paths["~/src"].Account != "SamWork" || len(configuration.Paths) != 2 {
+		t.Fatalf("nested path rule overwrote its parent: %#v", configuration.Paths)
+	}
+
+	if err := Unset(store, []string{"--path", "~/src/insurgence-ai"}); err != nil {
+		t.Fatal(err)
+	}
+	configuration, err = store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(configuration.Paths) != 1 || configuration.Paths["~/src"].Account != "SamWork" {
+		t.Fatalf("path rule was not removed: %#v", configuration.Paths)
+	}
+	if err := Unset(store, []string{"--path", "~/src"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStatusResolveReportsSource(t *testing.T) {
 	store := config.NewStore(filepath.Join(t.TempDir(), "config.yaml"))
 	configuration := config.New("SamCullin")

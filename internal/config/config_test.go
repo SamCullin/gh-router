@@ -12,6 +12,7 @@ func TestStoreRoundTripPreservesRoutingConfiguration(t *testing.T) {
 	configuration := New("SamCullin")
 	configuration.SetAccountConfig("SamCullin", "~/.config/gh")
 	configuration.SetOrganisationRule("OpenAI", "SamWork")
+	configuration.Paths["~/src/insurgence-ai"] = Rule{Account: "SamWork"}
 	if err := configuration.SetRepositoryRule("OpenAI/sensitive-repo", "SamAdmin"); err != nil {
 		t.Fatal(err)
 	}
@@ -27,8 +28,34 @@ func TestStoreRoundTripPreservesRoutingConfiguration(t *testing.T) {
 	if loaded.Default != "SamCullin" || loaded.Orgs["OpenAI"].Account != "SamWork" {
 		t.Fatalf("unexpected configuration: %#v", loaded)
 	}
+	if loaded.Paths["~/src/insurgence-ai"].Account != "SamWork" {
+		t.Fatalf("path rule was not preserved: %#v", loaded.Paths)
+	}
 	if account, _, ok := loaded.RepositoryRule("openai/SENSITIVE-rePO"); !ok || account != "SamAdmin" {
 		t.Fatalf("repository rule was not preserved: %#v", loaded.Repos)
+	}
+}
+
+func TestPathRuleMatchesDescendantsAndPrefersMostSpecific(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	configuration := New("SamCullin")
+	configuration.Paths["~/src"] = Rule{Account: "SamWork"}
+	configuration.Paths["~/src/insurgence-ai"] = Rule{Account: "SamInsurgence"}
+
+	account, path, ok := configuration.PathRule(filepath.Join(home, "src", "insurgence-ai", "repo", "main"))
+	if !ok || account != "SamInsurgence" || path != "~/src/insurgence-ai" {
+		t.Fatalf("unexpected nested path resolution: %q, %q, %v", account, path, ok)
+	}
+
+	account, path, ok = configuration.PathRule(filepath.Join(home, "src", "other-org", "repo"))
+	if !ok || account != "SamWork" || path != "~/src" {
+		t.Fatalf("unexpected parent path resolution: %q, %q, %v", account, path, ok)
+	}
+
+	if _, _, ok = configuration.PathRule(filepath.Join(home, "src-other", "repo")); ok {
+		t.Fatal("path rule matched a sibling directory")
 	}
 }
 

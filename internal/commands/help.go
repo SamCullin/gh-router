@@ -27,8 +27,11 @@ Router help (available under gh router or gh-router):
       Route an organisation to an account.
   gh router auth set --repo OWNER/REPO --account ACCOUNT
       Route a repository to an account.
+  gh router auth set --path DIRECTORY --account ACCOUNT
+      Route a directory and its descendants to an account.
   gh router auth unset --org ORGANISATION
   gh router auth unset --repo OWNER/REPO
+  gh router auth unset --path DIRECTORY
       Remove a routing rule.
   gh --account ACCOUNT <gh command> [flags]
       Override routing for one command.
@@ -41,7 +44,7 @@ Router settings:
   Config file:       ~/.config/gh-router/config.yaml
   Account configs:    ~/.config/gh-router/accounts/ACCOUNT
   Config path override: GH_ROUTER_CONFIG=/path/to/config.yaml
-  Selection order:   --account, repository, organisation, implicit organisation, default.
+  Selection order:   --account, repository, organisation, path, implicit organisation, default.
   The first configured account becomes the default.
 
 Examples:

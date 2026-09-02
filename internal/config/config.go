@@ -72,6 +72,7 @@ type Config struct {
 	Accounts     map[string]Account     `yaml:"accounts,omitempty"`
 	Orgs         map[string]Rule        `yaml:"orgs,omitempty"`
 	Repos        map[string]Rule        `yaml:"repos,omitempty"`
+	Paths        map[string]Rule        `yaml:"paths,omitempty"`
 	ImplicitOrgs map[string]ImplicitOrg `yaml:"implicit_orgs,omitempty"`
 }
 
@@ -81,6 +82,7 @@ func New(defaultAccount string) Config {
 		Accounts:     map[string]Account{},
 		Orgs:         map[string]Rule{},
 		Repos:        map[string]Rule{},
+		Paths:        map[string]Rule{},
 		ImplicitOrgs: map[string]ImplicitOrg{},
 	}
 }
@@ -242,6 +244,14 @@ func (configuration Config) Validate() error {
 			return fmt.Errorf("repository %s must name an account", name)
 		}
 	}
+	for path, rule := range configuration.Paths {
+		if strings.TrimSpace(path) == "" || strings.TrimSpace(rule.Account) == "" {
+			return fmt.Errorf("path rules require a path and account")
+		}
+		if strings.ContainsAny(path, "\r\n") {
+			return fmt.Errorf("path values cannot contain newlines")
+		}
+	}
 	for name, rule := range configuration.ImplicitOrgs {
 		if strings.TrimSpace(name) == "" || strings.TrimSpace(rule.Account) == "" {
 			return fmt.Errorf("implicit organisation rules require a name and account")
@@ -297,6 +307,9 @@ func (configuration Config) AccountNames() []string {
 	for _, rule := range configuration.Repos {
 		seen[rule.Account] = true
 	}
+	for _, rule := range configuration.Paths {
+		seen[rule.Account] = true
+	}
 	for _, rule := range configuration.ImplicitOrgs {
 		seen[rule.Account] = true
 	}
@@ -329,6 +342,32 @@ func (configuration Config) RepositoryRule(repository string) (string, string, b
 		}
 	}
 	return "", "", false
+}
+
+func (configuration Config) PathRule(directory string) (string, string, bool) {
+	wanted, err := normalisePath(directory)
+	if err != nil {
+		return "", "", false
+	}
+
+	matchedPath := ""
+	matchedAccount := ""
+	matchedKey := ""
+	for configured, rule := range configuration.Paths {
+		candidate, candidateErr := normalisePath(configured)
+		if candidateErr != nil || !pathContains(candidate, wanted) {
+			continue
+		}
+		if len(candidate) > len(matchedPath) || (len(candidate) == len(matchedPath) && configured < matchedKey) {
+			matchedPath = candidate
+			matchedAccount = rule.Account
+			matchedKey = configured
+		}
+	}
+	if matchedPath == "" {
+		return "", "", false
+	}
+	return matchedAccount, matchedKey, true
 }
 
 func (configuration Config) OrganisationRule(organisation string) (string, string, bool) {
@@ -374,12 +413,69 @@ func (configuration *Config) SetRepositoryRule(repository, account string) error
 	return nil
 }
 
+func (configuration *Config) SetPathRule(path, account string) error {
+	wanted, err := normalisePath(path)
+	if err != nil {
+		return err
+	}
+	if configuration.Paths == nil {
+		configuration.Paths = map[string]Rule{}
+	}
+	key := strings.TrimSpace(path)
+	for configured := range configuration.Paths {
+		candidate, candidateErr := normalisePath(configured)
+		if candidateErr == nil && candidate == wanted {
+			key = configured
+			break
+		}
+	}
+	configuration.Paths[key] = Rule{Account: strings.TrimSpace(account)}
+	return nil
+}
+
 func (configuration *Config) RemoveRepositoryRule(repository string) (string, bool) {
 	if _, configured, ok := configuration.RepositoryRule(repository); ok {
 		delete(configuration.Repos, configured)
 		return configured, true
 	}
 	return "", false
+}
+
+func (configuration *Config) RemovePathRule(path string) (string, bool) {
+	wanted, err := normalisePath(path)
+	if err != nil {
+		return "", false
+	}
+	for configured := range configuration.Paths {
+		candidate, candidateErr := normalisePath(configured)
+		if candidateErr == nil && candidate == wanted {
+			delete(configuration.Paths, configured)
+			return configured, true
+		}
+	}
+	return "", false
+}
+
+func normalisePath(value string) (string, error) {
+	expanded, err := ExpandPath(value)
+	if err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(expanded) {
+		expanded, err = filepath.Abs(expanded)
+		if err != nil {
+			return "", fmt.Errorf("resolve path %q: %w", value, err)
+		}
+	}
+	return filepath.Clean(expanded), nil
+}
+
+func pathContains(root, directory string) bool {
+	relative, err := filepath.Rel(root, directory)
+	if err != nil {
+		return false
+	}
+	return relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)))
 }
 
 func (configuration *Config) SetOrganisationRule(organisation, account string) {

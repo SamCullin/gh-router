@@ -21,8 +21,10 @@ Set up accounts:
 Configure routing:
 - Use `gh router auth set --org <organisation> --account <account>` for an organisation.
 - Use `gh router auth set --repo <owner/repository> --account <account>` for a repository exception.
+- Use `gh router auth set --path <directory> --account <account>` for a directory and its descendants.
 - Use `gh --account <account> <command>` for a one-command override when `gh` points to the router.
 - Use `gh router auth unset --org <organisation>` or `gh router auth unset --repo <owner/repository>` to remove a rule.
+- Use `gh router auth unset --path <directory>` to remove a directory rule.
 
 Use:
 - Treat `gh` as the normal GitHub CLI entry point. Its help and `gh auth ...` commands remain native.

@@ -23,23 +23,25 @@ const (
 type Target struct {
 	Repository   string
 	Organisation string
+	Directory    string
 	Source       Source
 }
 
 var repoPartPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 
 func Resolve(arguments []string, environ map[string]string, cwd string) (Target, error) {
+	directory := RepositoryRoot(cwd)
 	repository, found, err := explicitRepository(arguments)
 	if err != nil {
 		return Target{}, err
 	}
 	if found {
-		return Target{Repository: repository, Source: SourceCommand}, nil
+		return Target{Repository: repository, Directory: directory, Source: SourceCommand}, nil
 	}
 
 	repository, found = apiRepository(arguments)
 	if found {
-		return Target{Repository: repository, Source: SourceCommand}, nil
+		return Target{Repository: repository, Directory: directory, Source: SourceCommand}, nil
 	}
 
 	if repository, found = environmentValue(environ, "GH_REPO"); found && strings.TrimSpace(repository) != "" {
@@ -47,11 +49,11 @@ func Resolve(arguments []string, environ map[string]string, cwd string) (Target,
 		if parsed == "" {
 			return Target{}, fmt.Errorf("GH_REPO must use OWNER/REPO form")
 		}
-		return Target{Repository: parsed, Source: SourceEnvironment}, nil
+		return Target{Repository: parsed, Directory: directory, Source: SourceEnvironment}, nil
 	}
 
 	if repository := remoteRepository(cwd); repository != "" {
-		return Target{Repository: repository, Source: SourceRepository}, nil
+		return Target{Repository: repository, Directory: directory, Source: SourceRepository}, nil
 	}
 
 	organisation, found, err := optionValue(arguments, "--org", "--owner")
@@ -59,9 +61,9 @@ func Resolve(arguments []string, environ map[string]string, cwd string) (Target,
 		return Target{}, err
 	}
 	if found && strings.TrimSpace(organisation) != "" {
-		return Target{Organisation: organisation, Source: SourceOrganisation}, nil
+		return Target{Organisation: organisation, Directory: directory, Source: SourceOrganisation}, nil
 	}
-	return Target{Source: SourceDefault}, nil
+	return Target{Directory: directory, Source: SourceDefault}, nil
 }
 
 func explicitRepository(arguments []string) (string, bool, error) {
@@ -192,8 +194,12 @@ func environmentValue(environ map[string]string, key string) (string, bool) {
 }
 
 func RepositoryRoot(cwd string) string {
-	if cwd == "" {
-		return ""
+	if strings.TrimSpace(cwd) == "" {
+		var err error
+		cwd, err = os.Getwd()
+		if err != nil {
+			return ""
+		}
 	}
 	root, err := filepath.Abs(cwd)
 	if err != nil {

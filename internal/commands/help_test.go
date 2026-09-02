@@ -18,6 +18,7 @@ func TestPrintHelpIncludesRouterCommandsAndSettings(t *testing.T) {
 		"gh router auth status --resolve",
 		"gh router auth set --org ORGANISATION --account ACCOUNT",
 		"gh router auth set --repo OWNER/REPO --account ACCOUNT",
+		"gh router auth set --path DIRECTORY --account ACCOUNT",
 		"gh router llm-text",
 		"Print the setup and usage prompt for an LLM.",
 		"gh --account ACCOUNT <gh command> [flags]",
@@ -25,7 +26,7 @@ func TestPrintHelpIncludesRouterCommandsAndSettings(t *testing.T) {
 		"Config file:       ~/.config/gh-router/config.yaml",
 		"Account configs:    ~/.config/gh-router/accounts/ACCOUNT",
 		"Config path override: GH_ROUTER_CONFIG=/path/to/config.yaml",
-		"Selection order:   --account, repository, organisation, implicit organisation, default.",
+		"Selection order:   --account, repository, organisation, path, implicit organisation, default.",
 		"Normal GitHub CLI commands, including gh --help and gh auth status, remain native.",
 		"All other GitHub CLI commands are forwarded to gh with account routing applied.",
 	} {
