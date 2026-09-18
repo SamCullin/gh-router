@@ -89,11 +89,30 @@ The cask installs three commands:
 - `ghrllm.text`, a prompt for configuring the tool with an LLM
 
 No environment variable or shell alias is required for the normal installation.
-Homebrew leaves the native `gh` command intact. To route `gh` by default, point
-your shell configuration at `gh-router` and keep the native executable
-reachable, for example as `gho`; otherwise use `gh-router` or `ghr` explicitly.
-When the router is invoked as `gh`, native help and `gh auth ...` still pass
-through unchanged, while ordinary GitHub operations receive account routing.
+Homebrew leaves the native `gh` command intact. To route plain `gh` from
+interactive and non-interactive processes, explicitly install the reversible
+override:
+
+```bash
+gh-router override install
+```
+
+The command replaces the first `gh` executable found on `PATH` with a link to
+`gh-router` and preserves the native executable beside it with the
+`.gh-router-real` suffix. This changes executable resolution rather than shell
+startup state, so aliases and shell-specific configuration are not required.
+Inspect or remove it with:
+
+```bash
+gh-router override status
+gh-router override uninstall
+```
+
+Use `--path /path/to/gh` when the intended `gh` executable is not first on
+`PATH`. If a package manager relinks `gh` during an upgrade, run the install
+command again to reapply the override. When the router is invoked as `gh`,
+native help and `gh auth ...` still pass through unchanged, while ordinary
+GitHub operations receive account routing.
 The same prompt is available from the router namespace with `gh router llm-text`.
 
 Upgrade later with:

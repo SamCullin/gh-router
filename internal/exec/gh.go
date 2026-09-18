@@ -10,6 +10,7 @@ import (
 
 	"github.com/SamCullin/gh-router/internal/config"
 	"github.com/SamCullin/gh-router/internal/credentials"
+	"github.com/SamCullin/gh-router/internal/override"
 	"github.com/SamCullin/gh-router/internal/routing"
 )
 
@@ -23,22 +24,47 @@ func FindRealGH(argv0 string, environ map[string]string) (string, error) {
 	}
 
 	routerPath := resolvedPath(argv0)
+	if !strings.ContainsRune(argv0, os.PathSeparator) {
+		if lookedUp, err := osexec.LookPath(argv0); err == nil {
+			routerPath = resolvedPath(lookedUp)
+		}
+	}
 	pathValue, _ := environmentValue(environ, "PATH")
 	for _, directory := range strings.Split(pathValue, string(os.PathListSeparator)) {
 		if directory == "" {
 			continue
 		}
 		candidate := filepath.Join(directory, "gh")
-		if isExecutable(candidate) && resolvedPath(candidate) != routerPath {
-			return candidate, nil
+		if realGH := nativeCandidate(candidate, routerPath); realGH != "" {
+			return realGH, nil
 		}
 	}
-	for _, candidate := range []string{"/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"} {
-		if isExecutable(candidate) && resolvedPath(candidate) != routerPath {
-			return candidate, nil
+	for _, candidate := range []string{
+		"/opt/homebrew/bin/gh",
+		"/opt/homebrew/opt/gh/bin/gh",
+		"/usr/local/bin/gh",
+		"/usr/local/opt/gh/bin/gh",
+		"/usr/bin/gh",
+	} {
+		if realGH := nativeCandidate(candidate, routerPath); realGH != "" {
+			return realGH, nil
 		}
 	}
 	return "", fmt.Errorf("unable to find the real gh executable; set GH_ROUTER_REAL_GH")
+}
+
+func nativeCandidate(candidate, routerPath string) string {
+	if !isExecutable(candidate) {
+		return ""
+	}
+	if resolvedPath(candidate) != routerPath {
+		return candidate
+	}
+	backupPath := override.NativeBackupPath(candidate)
+	if isExecutable(backupPath) && resolvedPath(backupPath) != routerPath {
+		return backupPath
+	}
+	return ""
 }
 
 func Run(arguments []string, configuration config.Config, resolution routing.AccountResolution, argv0 string, environ map[string]string) error {

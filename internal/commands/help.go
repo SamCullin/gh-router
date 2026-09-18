@@ -35,10 +35,16 @@ Router help (available under gh router or gh-router):
       Remove a routing rule.
   gh --account ACCOUNT <gh command> [flags]
       Override routing for one command.
-  gh router auth switch
-      Explain that account switching is automatic.
-  gh router llm-text
-      Print the setup and usage prompt for an LLM.
+	  gh router auth switch
+	      Explain that account switching is automatic.
+	  gh router override install [--path PATH]
+	      Make plain gh resolve through the router without shell aliases.
+	  gh router override status [--path PATH]
+	      Show the installed gh override and native backup paths.
+	  gh router override uninstall [--path PATH]
+	      Restore the native gh executable and remove the override.
+	  gh router llm-text
+	      Print the setup and usage prompt for an LLM.
 
 Router settings:
   Config file:       ~/.config/gh-router/config.yaml
@@ -56,7 +62,12 @@ Examples:
 
 Normal GitHub CLI commands, including gh --help and gh auth status, remain native.
 All other GitHub CLI commands are forwarded to gh with account routing applied.
-Only gh auth switch is intercepted with guidance to use router configuration.`
+Only gh auth switch is intercepted with guidance to use router configuration.
+
+The override command replaces the first gh executable on PATH with a router link
+and keeps the native executable at the same path with a .gh-router-real suffix.
+It is intended for non-interactive shells and can be removed with override
+uninstall.`
 
 func PrintHelp(writer io.Writer) {
 	if writer == nil {

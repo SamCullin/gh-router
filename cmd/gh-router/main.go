@@ -114,26 +114,36 @@ func runRouterCommand(rawArguments []string) error {
 	}
 	store := config.NewStore(path)
 
-	if len(rawArguments) < 2 || rawArguments[0] != "auth" {
-		return fmt.Errorf("unsupported router command: %s", rawArguments[0])
+	if len(rawArguments) == 0 {
+		return fmt.Errorf("router command is required")
 	}
 
-	switch rawArguments[1] {
-	case "switch":
-		commands.PrintSwitchMessage(os.Stdout)
-		return nil
-	case "set":
-		return commands.Set(store, rawArguments[2:])
-	case "setup", "login":
-		return commands.Setup(store, os.Stdout, rawArguments[2:], os.Args[0], nil, nil)
-	case "unset":
-		return commands.Unset(store, rawArguments[2:])
-	case "status":
-		return commands.Status(store, os.Stdout, rawArguments[2:], "", nil, "")
-	case "resolve":
-		return commands.Status(store, os.Stdout, append([]string{"--resolve"}, rawArguments[2:]...), "", nil, "")
+	switch rawArguments[0] {
+	case "auth":
+		if len(rawArguments) < 2 {
+			return fmt.Errorf("router auth command is required")
+		}
+		switch rawArguments[1] {
+		case "switch":
+			commands.PrintSwitchMessage(os.Stdout)
+			return nil
+		case "set":
+			return commands.Set(store, rawArguments[2:])
+		case "setup", "login":
+			return commands.Setup(store, os.Stdout, rawArguments[2:], os.Args[0], nil, nil)
+		case "unset":
+			return commands.Unset(store, rawArguments[2:])
+		case "status":
+			return commands.Status(store, os.Stdout, rawArguments[2:], "", nil, "")
+		case "resolve":
+			return commands.Status(store, os.Stdout, append([]string{"--resolve"}, rawArguments[2:]...), "", nil, "")
+		default:
+			return fmt.Errorf("unsupported router auth command: %s", rawArguments[1])
+		}
+	case "override":
+		return commands.Override(os.Stdout, rawArguments[1:], os.Args[0])
 	default:
-		return fmt.Errorf("unsupported router auth command: %s", rawArguments[1])
+		return fmt.Errorf("unsupported router command: %s", rawArguments[0])
 	}
 }
 
@@ -179,7 +189,11 @@ func isRouterAuthCommand(arguments []string) bool {
 }
 
 func isDirectRouterCommand(arguments []string) bool {
-	return isRouterAuthCommand(arguments) || (len(arguments) == 1 && arguments[0] == "llm-text")
+	return isRouterAuthCommand(arguments) || isRouterOverrideCommand(arguments) || (len(arguments) == 1 && arguments[0] == "llm-text")
+}
+
+func isRouterOverrideCommand(arguments []string) bool {
+	return len(arguments) > 0 && arguments[0] == "override"
 }
 
 func isPassthroughWithoutRouting(arguments []string) bool {

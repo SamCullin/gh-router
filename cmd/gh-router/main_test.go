@@ -11,6 +11,7 @@ func TestRouterNamespaceAndHelpRequests(t *testing.T) {
 	}{
 		{name: "router help", arguments: []string{"router", "--help"}, namespace: true, help: true},
 		{name: "router command", arguments: []string{"router", "auth", "status"}, namespace: true, help: false},
+		{name: "router override command", arguments: []string{"router", "override", "status"}, namespace: true, help: false},
 		{name: "router llm text", arguments: []string{"router", "llm-text"}, namespace: true, help: false},
 		{name: "native help", arguments: []string{"--help"}, namespace: false, help: false},
 		{name: "native command help", arguments: []string{"issue", "list", "--help"}, namespace: false, help: false},
@@ -42,6 +43,12 @@ func TestDirectRouterInvocation(t *testing.T) {
 	if !isRouterAuthCommand([]string{"auth", "status"}) {
 		t.Fatal("auth status should be a router command for direct router invocations")
 	}
+	if !isRouterOverrideCommand([]string{"override", "status"}) {
+		t.Fatal("override status should be a router command for direct router invocations")
+	}
+	if !isDirectRouterCommand([]string{"override", "install"}) {
+		t.Fatal("override install should be a direct router command")
+	}
 	if !isDirectRouterCommand([]string{"llm-text"}) {
 		t.Fatal("llm-text should be a router command for direct router invocations")
 	}
@@ -50,6 +57,9 @@ func TestDirectRouterInvocation(t *testing.T) {
 	}
 	if isDirectRouterCommand([]string{"issue", "list"}) {
 		t.Fatal("issue list should remain a GitHub CLI command")
+	}
+	if isRouterOverrideCommand([]string{"issue", "list"}) {
+		t.Fatal("issue list should not be an override command")
 	}
 	for _, arguments := range [][]string{{}, {"--help"}, {"help"}} {
 		if !isRootHelpRequest(arguments) {
