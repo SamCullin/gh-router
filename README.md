@@ -113,6 +113,11 @@ Use `--path /path/to/gh` when the intended `gh` executable is not first on
 command again to reapply the override. When the router is invoked as `gh`,
 native help and `gh auth ...` still pass through unchanged, while ordinary
 GitHub operations receive account routing.
+
+If you set `GH_ROUTER_REAL_GH`, point it at the native GitHub CLI executable,
+not a path that resolves to the router. The router detects this mistake and
+uses the `.gh-router-real` backup when the override is installed; otherwise it
+fails before starting a recursive credential lookup.
 The same prompt is available from the router namespace with `gh router llm-text`.
 
 Upgrade later with:

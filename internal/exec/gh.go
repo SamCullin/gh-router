@@ -15,20 +15,24 @@ import (
 )
 
 func FindRealGH(argv0 string, environ map[string]string) (string, error) {
-	if configured, found := environmentValue(environ, "GH_ROUTER_REAL_GH"); found && strings.TrimSpace(configured) != "" {
-		path, err := osexec.LookPath(configured)
-		if err != nil {
-			return "", fmt.Errorf("GH_ROUTER_REAL_GH does not point to an executable: %s", configured)
-		}
-		return path, nil
-	}
-
 	routerPath := resolvedPath(argv0)
 	if !strings.ContainsRune(argv0, os.PathSeparator) {
 		if lookedUp, err := osexec.LookPath(argv0); err == nil {
 			routerPath = resolvedPath(lookedUp)
 		}
 	}
+
+	if configured, found := environmentValue(environ, "GH_ROUTER_REAL_GH"); found && strings.TrimSpace(configured) != "" {
+		path, err := osexec.LookPath(configured)
+		if err != nil {
+			return "", fmt.Errorf("GH_ROUTER_REAL_GH does not point to an executable: %s", configured)
+		}
+		if realGH := nativeCandidate(path, routerPath); realGH != "" {
+			return realGH, nil
+		}
+		return "", fmt.Errorf("GH_ROUTER_REAL_GH resolves to gh-router; restore the native gh executable or set GH_ROUTER_REAL_GH to it directly")
+	}
+
 	pathValue, _ := environmentValue(environ, "PATH")
 	for _, directory := range strings.Split(pathValue, string(os.PathListSeparator)) {
 		if directory == "" {
