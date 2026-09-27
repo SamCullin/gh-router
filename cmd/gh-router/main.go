@@ -1,14 +1,19 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/SamCullin/gh-router/internal/args"
 	"github.com/SamCullin/gh-router/internal/commands"
 	"github.com/SamCullin/gh-router/internal/config"
+	"github.com/SamCullin/gh-router/internal/credentials"
 	ghexec "github.com/SamCullin/gh-router/internal/exec"
+	"github.com/SamCullin/gh-router/internal/gitcredential"
 	"github.com/SamCullin/gh-router/internal/routing"
 	"github.com/SamCullin/gh-router/internal/target"
 	"github.com/SamCullin/gh-router/internal/version"
@@ -20,6 +25,10 @@ func main() {
 		return
 	}
 	if err := run(os.Args[1:]); err != nil {
+		var exitError *ghexec.ExitError
+		if errors.As(err, &exitError) {
+			os.Exit(exitError.Code)
+		}
 		fmt.Fprintf(os.Stderr, "gh-router: %v\n", err)
 		os.Exit(2)
 	}
@@ -61,7 +70,19 @@ func run(rawArguments []string) error {
 		return executeNative(commandArguments)
 	}
 
-	if isNativeAuthCommand(commandArguments) || isPassthroughWithoutRouting(commandArguments) {
+	if isGitCredentialCommand(commandArguments) {
+		return runGitCredential(commandArguments, accountOverride)
+	}
+	if isRoutedAuthTokenCommand(commandArguments) {
+		return runForResolvedAccount(commandArguments, accountOverride)
+	}
+	if isNativeAuthCommand(commandArguments) {
+		if strings.TrimSpace(accountOverride) != "" {
+			return runForResolvedAccount(commandArguments, accountOverride)
+		}
+		return executeNative(commandArguments)
+	}
+	if isPassthroughWithoutRouting(commandArguments) {
 		return executeNative(commandArguments)
 	}
 
@@ -84,6 +105,92 @@ func run(rawArguments []string) error {
 		return err
 	}
 	return ghexec.Run(commandArguments, configuration, resolution, os.Args[0], nil)
+}
+
+// runForResolvedAccount runs a native auth command against the isolated
+// config directory of the routed account. It sets GH_CONFIG_DIR rather than
+// GH_TOKEN so native commands such as gh auth token read that account.
+func runForResolvedAccount(arguments []string, accountOverride string) error {
+	configuration, err := loadConfiguration()
+	if err != nil {
+		return err
+	}
+	targetRepository, err := target.Resolve(nil, nil, "")
+	if err != nil {
+		return err
+	}
+	resolution, err := routing.ResolveAccount(configuration, targetRepository, accountOverride)
+	if err != nil {
+		return err
+	}
+	environment, err := accountEnvironment(configuration, resolution.Account)
+	if err != nil {
+		return err
+	}
+	realGH, err := ghexec.FindRealGH(os.Args[0], nil)
+	if err != nil {
+		return err
+	}
+	return ghexec.Execute(realGH, arguments, environment)
+}
+
+// runGitCredential serves git's credential helper protocol. git runs the
+// helper from the repository, so the account comes from --account, the
+// request path (credential.useHttpPath), the checkout's origin remote and
+// path rules, then the default account.
+func runGitCredential(arguments []string, accountOverride string) error {
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("read git credential request: %w", err)
+	}
+	request := gitcredential.Parse(input)
+	realGH, err := ghexec.FindRealGH(os.Args[0], nil)
+	if err != nil {
+		return err
+	}
+	if !request.IsGitHub() {
+		return ghexec.ExecuteWithInput(realGH, arguments, nil, input)
+	}
+	configuration, err := loadConfiguration()
+	if err != nil {
+		return err
+	}
+	targetRepository, err := gitCredentialTarget(request)
+	if err != nil {
+		return err
+	}
+	resolution, err := routing.ResolveAccount(configuration, targetRepository, accountOverride)
+	if err != nil {
+		return err
+	}
+	environment, err := accountEnvironment(configuration, resolution.Account)
+	if err != nil {
+		return err
+	}
+	return ghexec.ExecuteWithInput(realGH, arguments, environment, input)
+}
+
+func gitCredentialTarget(request gitcredential.Request) (target.Target, error) {
+	if repository := request.Repository(); repository != "" {
+		return target.Target{Repository: repository, Directory: target.RepositoryRoot(""), Source: target.SourceCommand}, nil
+	}
+	return target.Resolve(nil, nil, "")
+}
+
+func accountEnvironment(configuration config.Config, account string) (map[string]string, error) {
+	directory, err := credentials.ConfigDirectory(configuration, account)
+	if err != nil {
+		return nil, err
+	}
+	return credentials.EnvironmentForDirectory(directory, nil), nil
+}
+
+func loadConfiguration() (config.Config, error) {
+	path, err := config.DefaultPath()
+	if err != nil {
+		return config.Config{}, err
+	}
+	return config.NewStore(path).Load()
 }
 
 func executeNative(arguments []string) error {
@@ -189,7 +296,53 @@ func isRouterAuthCommand(arguments []string) bool {
 }
 
 func isDirectRouterCommand(arguments []string) bool {
-	return isRouterAuthCommand(arguments) || isRouterOverrideCommand(arguments) || (len(arguments) == 1 && arguments[0] == "llm-text")
+	return isDirectRouterAuthCommand(arguments) || isRouterOverrideCommand(arguments) || (len(arguments) == 1 && arguments[0] == "llm-text")
+}
+
+// isDirectRouterAuthCommand keeps ghr auth <router subcommand> in the router
+// while other auth subcommands, such as token or git-credential, reach the
+// GitHub CLI with account routing.
+func isDirectRouterAuthCommand(arguments []string) bool {
+	if !isRouterAuthCommand(arguments) {
+		return false
+	}
+	if len(arguments) == 1 {
+		return true
+	}
+	switch arguments[1] {
+	case "switch", "set", "setup", "login", "unset", "status", "resolve":
+		return true
+	default:
+		return false
+	}
+}
+
+func isGitCredentialCommand(arguments []string) bool {
+	return len(arguments) >= 2 && arguments[0] == "auth" && arguments[1] == "git-credential" && !isPassthroughWithoutRouting(arguments)
+}
+
+// isRoutedAuthTokenCommand routes gh auth token for github.com. An explicit
+// --user or a different --hostname keeps the native behaviour.
+func isRoutedAuthTokenCommand(arguments []string) bool {
+	if len(arguments) < 2 || arguments[0] != "auth" || arguments[1] != "token" || isPassthroughWithoutRouting(arguments) {
+		return false
+	}
+	for index, argument := range arguments[2:] {
+		switch {
+		case argument == "--user" || argument == "-u" || strings.HasPrefix(argument, "--user="):
+			return false
+		case argument == "--hostname" || argument == "-h":
+			rest := arguments[2:]
+			if index+1 < len(rest) && !strings.EqualFold(rest[index+1], "github.com") {
+				return false
+			}
+		case strings.HasPrefix(argument, "--hostname="):
+			if !strings.EqualFold(strings.TrimPrefix(argument, "--hostname="), "github.com") {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func isRouterOverrideCommand(arguments []string) bool {

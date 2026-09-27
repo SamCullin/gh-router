@@ -1,6 +1,8 @@
 package ghexec
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	osexec "os/exec"
@@ -93,6 +95,38 @@ func Execute(realGH string, arguments []string, environ map[string]string) error
 		environ = environmentMap()
 	}
 	return syscall.Exec(realGH, argv, environmentSlice(environ))
+}
+
+// ExitError carries a native gh exit status so the router can exit with it
+// instead of wrapping it in its own error.
+type ExitError struct {
+	Code int
+}
+
+func (err *ExitError) Error() string {
+	return fmt.Sprintf("native gh exited with status %d", err.Code)
+}
+
+// ExecuteWithInput runs native gh with the given stdin, forwarding its output.
+// It is used when the router has already consumed stdin to make a routing
+// decision, such as a git credential request.
+func ExecuteWithInput(realGH string, arguments []string, environ map[string]string, input []byte) error {
+	command := osexec.Command(realGH, arguments...)
+	if environ == nil {
+		environ = environmentMap()
+	}
+	command.Env = environmentSlice(environ)
+	command.Stdin = bytes.NewReader(input)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	if err := command.Run(); err != nil {
+		var exitError *osexec.ExitError
+		if errors.As(err, &exitError) {
+			return &ExitError{Code: exitError.ExitCode()}
+		}
+		return err
+	}
+	return nil
 }
 
 func RunInteractive(realGH string, arguments []string, environ map[string]string) error {
