@@ -57,10 +57,36 @@ The normal command surface remains the GitHub CLI. Router behaviour is added as 
 namespace, like a GitHub CLI extension:
 
 - `gh --help`, command-specific help, and `gh auth ...` use the native GitHub CLI.
+  `gh auth token` and `gh auth git-credential` are routed to the resolved
+  account, and `--account` applies to every `gh auth` command.
 - `gh router ...` exposes router help, account setup, status, and routing rules.
 - `gh auth switch` is the one native command intercepted by the router, because
   changing mutable active-account state defeats deterministic routing.
 - All other GitHub CLI operations are forwarded to the native CLI after routing.
+
+## Git over HTTPS
+
+Git asks a credential helper for a token on each HTTPS fetch or push. Point
+that helper at the router so git uses the same account as `gh` for the
+repository:
+
+```bash
+git config --global --replace-all credential.https://github.com.helper ""
+git config --global --add credential.https://github.com.helper '!ghr auth git-credential'
+```
+
+The empty value clears any helper configured earlier, such as the one written
+by `gh auth setup-git`. git runs the helper from the checkout, so the account
+follows the usual rules: `--account`, a repository rule, an organisation rule
+from the `origin` remote, a path rule, then the default account. To route by
+the URL git is contacting rather than the checkout's `origin` (for example
+`git clone` outside a checkout), also set:
+
+```bash
+git config --global credential.https://github.com.useHttpPath true
+```
+
+Requests for other hosts are passed to the native helper unchanged.
 
 The direct commands `gh-router` and `ghr` expose the same router and routed
 operation surface when an explicit router binary is preferable.
@@ -111,8 +137,9 @@ gh-router override uninstall
 Use `--path /path/to/gh` when the intended `gh` executable is not first on
 `PATH`. If a package manager relinks `gh` during an upgrade, run the install
 command again to reapply the override. When the router is invoked as `gh`,
-native help and `gh auth ...` still pass through unchanged, while ordinary
-GitHub operations receive account routing.
+native help and `gh auth ...` still pass through unchanged, except that
+`gh auth token` and `gh auth git-credential` use the routed account, while
+ordinary GitHub operations receive account routing.
 
 If you set `GH_ROUTER_REAL_GH`, point it at the native GitHub CLI executable,
 not a path that resolves to the router. The router detects this mistake and

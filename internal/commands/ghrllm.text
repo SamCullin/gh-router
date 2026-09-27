@@ -27,7 +27,8 @@ Configure routing:
 - Use `gh router auth unset --path <directory>` to remove a directory rule.
 
 Use:
-- Treat `gh` as the normal GitHub CLI entry point. Its help and `gh auth ...` commands remain native.
+- Treat `gh` as the normal GitHub CLI entry point. Its help and `gh auth ...` commands remain native, except `gh auth token` and `gh auth git-credential`, which use the routed account.
+- For git over HTTPS, set the helper with `git config --global --replace-all credential.https://github.com.helper ""` then `git config --global --add credential.https://github.com.helper '!ghr auth git-credential'`.
 - Use `gh router ...` for router configuration and help.
 - Use `gh router llm-text` to print this setup and usage prompt again.
 - Use `ghr` or `gh-router` when an explicit routed invocation is needed.

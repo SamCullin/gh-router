@@ -61,6 +61,8 @@ Examples:
   gh --account SamPersonal issue list -R SamCullin/project
 
 Normal GitHub CLI commands, including gh --help and gh auth status, remain native.
+gh auth token and gh auth git-credential use the routed account, and --account
+applies to every gh auth command.
 All other GitHub CLI commands are forwarded to gh with account routing applied.
 Only gh auth switch is intercepted with guidance to use router configuration.
 
